@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Search, Trash } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Trash } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -16,7 +16,7 @@ import { useContext, useEffect, useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, where } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/services/firebase-connection";
 import { AuthContext } from "@/context/auth-context";
 import {
@@ -51,8 +51,6 @@ export function Dashboard() {
     const { user } = useContext(AuthContext);
     const [selectType, setSelectType] = useState('income');
     const [transactions, setTransactions] = useState<TransactionProps[]>([]);
-    // const [search, setSearch] = useState('');
-
     const { register, handleSubmit, reset, formState: { errors } } = useForm<TransactionFormData>({
         resolver: zodResolver(transactionSchema),
     });
@@ -85,40 +83,32 @@ export function Dashboard() {
     }
 
     useEffect(() => {
-        async function loadTransactions() {
-            if (!user) {
-                return
-            }
+        if (!user) return;
 
-            const transactionRef = collection(db, 'transactions')
-            const queryRef = query(
-                transactionRef,
-                where('userUID', '==', user.uid),
-                orderBy('created', 'desc')
-            );
+        const transactionRef = collection(db, 'transactions');
+        const queryRef = query(
+            transactionRef,
+            where('userUID', '==', user.uid),
+            orderBy('created', 'desc')
+        );
 
-            getDocs(queryRef)
-                .then((snapshot) => {
-                    const listTransaction = [] as TransactionProps[]
+        const unsubscribe = onSnapshot(queryRef, (snapshot) => {
+            const listTransaction = snapshot.docs.map(doc => ({
+                id: doc.id,
+                value: doc.data().value,
+                type: doc.data().type,
+                description: doc.data().description,
+                category: doc.data().category,
+                userUID: doc.data().userUID,
+                created: doc.data().created.toDate() // Certifique-se de que o campo `created` seja um Timestamp e converta para Date.
+            }));
 
-                    snapshot.forEach((doc) => {
-                        listTransaction.push({
-                            id: doc.id,
-                            value: doc.data().value,
-                            type: doc.data().type,
-                            description: doc.data().description,
-                            category: doc.data().category,
-                            userUID: doc.data().userUID,
-                            created: doc.data().created
-                        })
-                    })
+            setTransactions(listTransaction);
+        });
 
-                    setTransactions(listTransaction)
-                })
-        }
-
-        loadTransactions()
-    }, [user])
+        // Limpa o listener ao desmontar o componente ou quando o usuário muda
+        return () => unsubscribe();
+    }, [user]);
 
     const totalEntradas = transactions.reduce((acc, transaction) => acc + (transaction.type === 'income' ? transaction.value : 0), 0);
     const totalSaidas = transactions.reduce((acc, transaction) => acc + (transaction.type === 'outcome' ? transaction.value : 0), 0);
@@ -220,18 +210,6 @@ export function Dashboard() {
                     </CardContent>
                 </Card>
             </div>
-
-            <form className="flex gap-4 items-end">
-
-                <div className="w-full flex flex-col gap-4">
-                    <Label>Filtrar transações</Label>
-                    <Input className="w-full" placeholder="Buscar transação" />
-                </div>
-                <Button className="border-primary text-primary" variant="outline">
-                    <Search className="h-4" />
-                    Buscar
-                </Button>
-            </form>
 
             <div>
                 <Table>
