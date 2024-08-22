@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Search } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, DollarSign, Plus, Search, Trash } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -12,11 +12,117 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, where } from "firebase/firestore";
+import { db } from "@/services/firebase-connection";
+import { AuthContext } from "@/context/auth-context";
+import {
+    Table,
+    TableBody,
+    TableCaption,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 
+interface TransactionProps {
+    id: string;
+    value: number;
+    type: string;
+    description: string;
+    category: string;
+    userUID: string;
+    created: Date
+}
+
+const transactionSchema = z.object({
+    value: z.number().min(0, { message: 'Valor deve ser maior que 0' }),
+    description: z.string().min(1, { message: 'Descrição é obrigatória' }),
+    category: z.string().min(1, { message: 'Categoria é obrigatória' }),
+});
+
+type TransactionFormData = z.infer<typeof transactionSchema>;
 
 export function Dashboard() {
-    const [selectType, setSelectType] = useState('income')
+    const { user } = useContext(AuthContext);
+    const [selectType, setSelectType] = useState('income');
+    const [transactions, setTransactions] = useState<TransactionProps[]>([]);
+    // const [search, setSearch] = useState('');
+
+    const { register, handleSubmit, reset, formState: { errors } } = useForm<TransactionFormData>({
+        resolver: zodResolver(transactionSchema),
+    });
+
+    async function handleAddTransaction(data: TransactionFormData) {
+        if (!user) return
+        try {
+            await addDoc(collection(db, 'transactions'), {
+                value: data.value,
+                type: selectType,
+                description: data.description,
+                category: data.category,
+                userUID: user.uid,
+                created: new Date()
+            });
+
+            reset();
+        } catch (error) {
+            console.error('Erro ao adicionar transação: ', error);
+        }
+    }
+
+
+    async function handleRemoveTransaction(id: string) {
+        try {
+            await deleteDoc(doc(db, 'transactions', id))
+        } catch (error) {
+            console.error('Erro ao remover transação: ', error);
+        }
+    }
+
+    useEffect(() => {
+        async function loadTransactions() {
+            if (!user) {
+                return
+            }
+
+            const transactionRef = collection(db, 'transactions')
+            const queryRef = query(
+                transactionRef,
+                where('userUID', '==', user.uid),
+                orderBy('created', 'desc')
+            );
+
+            getDocs(queryRef)
+                .then((snapshot) => {
+                    const listTransaction = [] as TransactionProps[]
+
+                    snapshot.forEach((doc) => {
+                        listTransaction.push({
+                            id: doc.id,
+                            value: doc.data().value,
+                            type: doc.data().type,
+                            description: doc.data().description,
+                            category: doc.data().category,
+                            userUID: doc.data().userUID,
+                            created: doc.data().created
+                        })
+                    })
+
+                    setTransactions(listTransaction)
+                })
+        }
+
+        loadTransactions()
+    }, [user])
+
+    const totalEntradas = transactions.reduce((acc, transaction) => acc + (transaction.type === 'income' ? transaction.value : 0), 0);
+    const totalSaidas = transactions.reduce((acc, transaction) => acc + (transaction.type === 'outcome' ? transaction.value : 0), 0);
+    const saldo = totalEntradas - totalSaidas;
 
     return (
         <section className="w-11/12 max-w-7xl mx-auto space-y-6">
@@ -37,18 +143,23 @@ export function Dashboard() {
                             </DialogDescription>
                         </DialogHeader>
 
-                        <form className="space-y-6">
+                        <form onSubmit={handleSubmit(handleAddTransaction)} className="space-y-6">
                             <div className="space-y-2">
                                 <Label htmlFor="description">Descrição</Label>
-                                <Input id="description" placeholder="Descrição da transação" />
+                                <Input {...register('description')} id="description" placeholder="Descrição da transação" />
+                                {errors.description && <p className="text-red-500">{errors.description.message}</p>}
                             </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="price">Preço</Label>
-                                <Input id="price" placeholder="Valor da movimentação" />
+                                <Input type="number" id="price" placeholder="Valor da movimentação" {...register('value', { valueAsNumber: true })} />
+                                {errors.value && <p className="text-red-500">{errors.value.message}</p>}
                             </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="category">Categoria</Label>
-                                <Input id="category" placeholder="Categoria da transação" />
+                                <Input id="category" placeholder="Categoria da transação" {...register('category')} />
+                                {errors.category && <p className="text-red-500">{errors.category.message}</p>}
                             </div>
 
                             <RadioGroup defaultValue={selectType} onValueChange={(value) => setSelectType(value)} className="flex justify-around gap-4">
@@ -74,7 +185,7 @@ export function Dashboard() {
                                 </Label>
                             </RadioGroup>
 
-                            <Button className="w-full">Cadastrar</Button>
+                            <Button className="w-full" type="submit">Cadastrar</Button>
                         </form>
                     </DialogContent>
                 </Dialog>
@@ -87,7 +198,7 @@ export function Dashboard() {
                         <ArrowUpCircle className="text-primary" />
                     </CardHeader>
                     <CardContent>
-                        <CardTitle className="line-clamp-1">R$ 00,00</CardTitle>
+                        <CardTitle className="line-clamp-1">{totalEntradas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</CardTitle>
                     </CardContent>
                 </Card>
                 <Card className="w-full max-w-sm mx-auto">
@@ -96,16 +207,16 @@ export function Dashboard() {
                         <ArrowDownCircle className="text-destructive" />
                     </CardHeader>
                     <CardContent>
-                        <CardTitle className="line-clamp-1">- R$ 00,00</CardTitle>
+                        <CardTitle className="line-clamp-1">- {totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</CardTitle>
                     </CardContent>
                 </Card>
-                <Card className="w-full max-w-sm mx-auto bg-primary/50">
+                <Card className={totalEntradas >= totalSaidas ? "w-full max-w-sm mx-auto bg-primary/50" : "w-full max-w-sm mx-auto bg-destructive/50"}>
                     <CardHeader className="flex-row justify-between">
-                        <CardDescription>Entradas</CardDescription>
+                        <CardDescription>Total</CardDescription>
                         <DollarSign />
                     </CardHeader>
                     <CardContent>
-                        <CardTitle className="line-clamp-1">R$ 00,00</CardTitle>
+                        <CardTitle className="line-clamp-1">{saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</CardTitle>
                     </CardContent>
                 </Card>
             </div>
@@ -121,6 +232,45 @@ export function Dashboard() {
                     Buscar
                 </Button>
             </form>
+
+            <div>
+                <Table>
+                    <TableCaption>Lista de movimentações.</TableCaption>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[100px]">Tipo</TableHead>
+                            <TableHead>Categoria</TableHead>
+                            <TableHead className="text-left">Descrição</TableHead>
+                            <TableHead className="text-center">Preço</TableHead>
+                            <TableHead className="w-[100px]">
+                                <Button variant="link">
+                                    <Trash />
+                                </Button>
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {transactions.map((transaction) => (
+                            <TableRow key={transaction.id}>
+                                <TableCell className="font-medium">{transaction.type === 'income' ? "Entrada" : "Saida"}</TableCell>
+                                <TableCell>{transaction.category}</TableCell>
+                                <TableCell className="text-left">{transaction.description}</TableCell>
+                                <TableCell className="text-center">
+                                    {Intl.NumberFormat('pt-BR', {
+                                        style: 'currency',
+                                        currency: 'BRL',
+                                    }).format(transaction.value)}
+                                </TableCell>
+                                <TableCell className="w-10">
+                                    <Button variant="link" className="flex text-destructive" onClick={() => handleRemoveTransaction(transaction.id)}>
+                                        <Trash />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
         </section>
     )
 }
