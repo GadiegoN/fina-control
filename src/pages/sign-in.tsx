@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "@/services/firebase-connection";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,7 +79,9 @@ export function SignIn() {
                         <p className="border-t rounded-full p-2 border-primary hover:bg-muted">ou</p>
                         <div className="h-1 border-b border-primary w-full" />
                     </div>
-                    <Button type="button" className="w-full" variant="ghost">Criar conta</Button>
+                    <Button type="button" className="w-full" variant="ghost">
+                        <Link to="/sign-up">Criar conta</Link>
+                    </Button>
                 </CardContent>
             </Card>
         </section>
