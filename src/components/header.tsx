@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./nav-link";
+import { ModeToggle } from "./theme/mode-toggle";
 
 export function Header() {
     return (
@@ -10,9 +11,10 @@ export function Header() {
                 </Link>
 
                 <nav className="flex gap-2">
-                    <NavLink to="/">Ininio</NavLink>
+                    <NavLink to="/">Início</NavLink>
                     <NavLink to="/sign-in">Login</NavLink>
                     <NavLink to="/dashboard">Dashboard</NavLink>
+                    <ModeToggle />
                 </nav>
             </div>
         </header>

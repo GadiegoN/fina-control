@@ -3,6 +3,7 @@ import { Dashboard } from "@/pages/dashboard";
 import { Home } from "@/pages/home";
 import { SignIn } from "@/pages/sign-in";
 import { createBrowserRouter } from "react-router-dom";
+import { PrivateRoute } from "./private-routes";
 
 export const router = createBrowserRouter([
     {
@@ -11,7 +12,7 @@ export const router = createBrowserRouter([
         children: [
             { path: '/', element: <Home /> },
             { path: '/sign-in', element: <SignIn /> },
-            { path: '/dashboard', element: <Dashboard /> },
+            { path: '/dashboard', element: <PrivateRoute><Dashboard /></PrivateRoute> },
         ]
     }
 ])
