@@ -85,7 +85,7 @@ export function SignUp() {
                                 placeholder="Digite seu nome"
                                 {...register('name')}
                             />
-                            {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+                            {errors.name && <p className="text-red-500 text-xs">{errors.name.message}</p>}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="create-email">E-mail</Label>
