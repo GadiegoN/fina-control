@@ -5,6 +5,7 @@ import { SignIn } from "@/pages/sign-in";
 import { createBrowserRouter } from "react-router-dom";
 import { PrivateRoute } from "./private-routes";
 import { SignUp } from "@/pages/sign-up";
+import { Profile } from "@/pages/profile";
 
 export const router = createBrowserRouter([
     {
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
             { path: '/sign-in', element: <SignIn /> },
             { path: '/sign-up', element: <SignUp /> },
             { path: '/dashboard', element: <PrivateRoute><Dashboard /></PrivateRoute> },
+            { path: '/profile', element: <PrivateRoute><Profile /></PrivateRoute> },
         ]
     }
 ])
