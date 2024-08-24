@@ -69,7 +69,8 @@ export function Dashboard() {
                 description: data.description,
                 category: data.category,
                 userUID: user.uid,
-                created: new Date()
+                created: new Date(),
+                updated: new Date()
             });
 
             reset();
@@ -166,7 +167,8 @@ export function Dashboard() {
                         <Button className="items-center gap-2">
                             <Plus className="h-4" />
                             Nova transação
-                        </Button></DialogTrigger>
+                        </Button>
+                    </DialogTrigger>
                     <DialogContent className="space-y-6">
                         <DialogHeader>
                             <DialogTitle>Nova transação</DialogTitle>
