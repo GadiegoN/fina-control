@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowDownCircle, ArrowUpCircle, DollarSign, Pencil, Plus, Trash, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight, DollarSign, Pencil, Plus, Trash, X } from "lucide-react";
 import {
     Dialog,
     DialogClose,
@@ -29,6 +29,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TransactionProps {
     id: string;
@@ -55,6 +56,10 @@ export function Dashboard() {
     const [transactions, setTransactions] = useState<TransactionProps[]>([]);
     const [isOpenDialogEdit, setIsOpenDialogEdit] = useState(false)
     const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<TransactionFormData>({
         resolver: zodResolver(transactionSchema),
@@ -129,11 +134,20 @@ export function Dashboard() {
         if (!user) return;
 
         const transactionRef = collection(db, 'transactions');
-        const queryRef = query(
+        let queryRef = query(
             transactionRef,
             where('userUID', '==', user.uid),
             orderBy('created', 'desc')
         );
+
+        if (selectedCategory) {
+            queryRef = query(
+                transactionRef,
+                where('userUID', '==', user.uid),
+                where('category', '==', selectedCategory),
+                orderBy('created', 'desc')
+            );
+        }
 
         const unsubscribe = onSnapshot(queryRef, (snapshot) => {
             const listTransaction = snapshot.docs.map(doc => ({
@@ -144,18 +158,32 @@ export function Dashboard() {
                 category: doc.data().category,
                 userUID: doc.data().userUID,
                 created: doc.data().created.toDate(),
-                updated: doc.data().updated.toDate()
+                updated: doc.data().updated?.toDate()
             }));
 
             setTransactions(listTransaction);
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [user, selectedCategory]);
 
+    const filteredTransactions = selectedCategory === "all" || !selectedCategory
+        ? transactions
+        : transactions.filter(transaction => transaction.category === selectedCategory)
+
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+
+    const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+    const uniqueCategories = [...new Set(transactions.map(transaction => transaction.category))];
     const totalEntradas = transactions.reduce((acc, transaction) => acc + (transaction.type === 'income' ? transaction.value : 0), 0);
     const totalSaidas = transactions.reduce((acc, transaction) => acc + (transaction.type === 'outcome' ? transaction.value : 0), 0);
     const saldo = totalEntradas - totalSaidas;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedCategory]);
 
     return (
         <section className="w-11/12 max-w-7xl mx-auto space-y-6">
@@ -256,6 +284,20 @@ export function Dashboard() {
             </div>
 
             <div>
+                <Select
+                    value={selectedCategory || ''}
+                    onValueChange={(value) => setSelectedCategory(value || null)}
+                >
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {uniqueCategories.map((category, index) => (
+                            <SelectItem key={index} value={category}>{category}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
                 <Table>
                     <TableCaption>Lista de movimentações.</TableCaption>
                     <TableHeader>
@@ -278,7 +320,7 @@ export function Dashboard() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {transactions.map((transaction) => (
+                        {paginatedTransactions.map((transaction) => (
                             <TableRow key={transaction.id}>
                                 <TableCell className="font-medium">{transaction.type === 'income' ? "Entrada" : "Saida"}</TableCell>
                                 <TableCell>{transaction.category}</TableCell>
@@ -361,6 +403,23 @@ export function Dashboard() {
                         ))}
                     </TableBody>
                 </Table>
+                <div className="flex justify-end w-full items-center gap-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        <ChevronLeft />
+                    </Button>
+                    <span>Página {currentPage} de {totalPages}</span>
+                    <Button
+                        variant="outline"
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        <ChevronRight />
+                    </Button>
+                </div>
             </div>
         </section>
     )
