@@ -261,6 +261,7 @@ export function Dashboard() {
                             <TableHead className="w-[100px]">Tipo</TableHead>
                             <TableHead>Categoria</TableHead>
                             <TableHead className="text-left">Descrição</TableHead>
+                            <TableHead className="text-left">Data de criação</TableHead>
                             <TableHead className="text-right">Preço</TableHead>
                             <TableHead className="w-[100px]">
                                 <Button variant="ghost">
@@ -280,6 +281,11 @@ export function Dashboard() {
                                 <TableCell className="font-medium">{transaction.type === 'income' ? "Entrada" : "Saida"}</TableCell>
                                 <TableCell>{transaction.category}</TableCell>
                                 <TableCell className="text-left">{transaction.description}</TableCell>
+                                <TableCell className="text-left">{Intl.DateTimeFormat('pt-BR', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric',
+                                }).format(transaction.created)}</TableCell>
                                 <TableCell className="text-right">
                                     {Intl.NumberFormat('pt-BR', {
                                         style: 'currency',
