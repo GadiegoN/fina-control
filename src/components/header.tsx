@@ -27,8 +27,12 @@ export function Header() {
 
                 <nav className="flex gap-2">
                     <NavLink to="/">Início</NavLink>
-                    <NavLink to="/about">Sobre</NavLink>
-                    {!user && <NavLink to="/sign-in">Login</NavLink>}
+                    {!user && (
+                        <>
+                            <NavLink to="/sign-in">Login</NavLink>
+                            <NavLink to="/about">Sobre</NavLink>
+                        </>
+                    )}
                     {user && (
                         <>
                             <NavLink to="/dashboard">Dashboard</NavLink>
