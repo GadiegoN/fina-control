@@ -30,7 +30,7 @@ export function Header() {
                     {!user && (
                         <>
                             <NavLink to="/sign-in">Login</NavLink>
-                            <NavLink to="/about">Sobre</NavLink>
+                            {/* <NavLink to="/about">Sobre</NavLink> */}
                         </>
                     )}
                     {user && (
