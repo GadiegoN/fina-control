@@ -30,6 +30,19 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerTrigger,
+} from "@/components/ui/drawer"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+
+import { ChartConfig, ChartContainer } from "@/components/ui/chart"
 
 interface TransactionProps {
     id: string;
@@ -42,6 +55,12 @@ interface TransactionProps {
     updated: Date
 }
 
+interface ChartDataProps {
+    name: string;
+    entradas: number;
+    saidas: number;
+}
+
 const transactionSchema = z.object({
     value: z.number().min(0, { message: 'Valor deve ser maior que 0' }),
     description: z.string().min(1, { message: 'Descrição é obrigatória' }),
@@ -50,6 +69,17 @@ const transactionSchema = z.object({
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
 
+const chartConfig = {
+    entradas: {
+        label: "Entradas",
+        color: "#25eb8f",
+    },
+    saidas: {
+        label: "Saidas",
+        color: "#fa6060",
+    },
+} satisfies ChartConfig
+
 export function Dashboard() {
     const { user } = useContext(AuthContext);
     const [selectType, setSelectType] = useState('income');
@@ -57,6 +87,7 @@ export function Dashboard() {
     const [isOpenDialogEdit, setIsOpenDialogEdit] = useState(false)
     const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [chartData, setChartData] = useState<ChartDataProps[]>([]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
@@ -166,6 +197,37 @@ export function Dashboard() {
 
         return () => unsubscribe();
     }, [user, selectedCategory]);
+
+    useEffect(() => {
+        const monthlyData: { [key: string]: { entradas: number, saidas: number } } = {};
+
+        transactions.forEach(transaction => {
+            const month = transaction.created.getMonth();
+            const year = transaction.created.getFullYear();
+            const key = `${year}-${month}`;
+
+            if (!monthlyData[key]) {
+                monthlyData[key] = { entradas: 0, saidas: 0 };
+            }
+
+            if (transaction.type === 'income') {
+                monthlyData[key].entradas += transaction.value;
+            } else if (transaction.type === 'outcome') {
+                monthlyData[key].saidas += transaction.value;
+            }
+        });
+
+        const chartDataArray = Object.keys(monthlyData).map(key => {
+            const [year, month] = key.split('-');
+            return {
+                name: `${month}/${year}`,
+                entradas: monthlyData[key].entradas,
+                saidas: monthlyData[key].saidas
+            };
+        });
+
+        setChartData(chartDataArray);
+    }, [transactions]);
 
     const filteredTransactions = selectedCategory === "all" || !selectedCategory
         ? transactions
@@ -284,20 +346,51 @@ export function Dashboard() {
             </div>
 
             <div>
-                <Select
-                    value={selectedCategory || ''}
-                    onValueChange={(value) => setSelectedCategory(value || null)}
-                >
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        {uniqueCategories.map((category, index) => (
-                            <SelectItem key={index} value={category}>{category}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="flex gap-4">
+                    <Select
+                        value={selectedCategory || ''}
+                        onValueChange={(value) => setSelectedCategory(value || null)}
+                    >
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos</SelectItem>
+                            {uniqueCategories.map((category, index) => (
+                                <SelectItem key={index} value={category}>{category}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Drawer>
+                        <DrawerTrigger>
+                            <Button variant="outline">
+                                Ver gráfico
+                            </Button>
+                        </DrawerTrigger>
+                        <DrawerContent>
+                            <DrawerHeader>
+                                <DrawerTitle>Grafico mensal</DrawerTitle>
+                                <DrawerDescription>Veja a evolução mensal das suas transações.</DrawerDescription>
+                            </DrawerHeader>
+                            <div>
+                                <ChartContainer config={chartConfig} className="min-h-[200px] max-h-[400px] w-full">
+                                    <BarChart accessibilityLayer data={chartData}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <Bar dataKey="entradas" fill="var(--color-entradas)" barSize={30} radius={4} />
+                                        <Bar dataKey="saidas" fill="var(--color-saidas)" barSize={30} radius={4} />
+                                        <YAxis />
+                                        <XAxis dataKey="name" />
+                                    </BarChart>
+                                </ChartContainer>
+                            </div>
+                            <DrawerFooter>
+                                <DrawerClose>
+                                    <Button className="w-full md:w-6/12 lg:w-4/12" variant="outline">Fechar</Button>
+                                </DrawerClose>
+                            </DrawerFooter>
+                        </DrawerContent>
+                    </Drawer>
+                </div>
                 <Table>
                     <TableCaption>Lista de movimentações.</TableCaption>
                     <TableHeader>
