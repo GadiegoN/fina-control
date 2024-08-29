@@ -202,9 +202,13 @@ export function Dashboard() {
         const monthlyData: { [key: string]: { entradas: number, saidas: number } } = {};
 
         transactions.forEach(transaction => {
-            const month = transaction.created.getMonth();
-            const year = transaction.created.getFullYear();
-            const key = `${year}-${month}`;
+            const dateNew = transaction.created
+            // const month = transaction.created.getMonth();
+            // const year = transaction.created.getFullYear();
+            const key = `${Intl.DateTimeFormat('pt-BR', {
+                year: 'numeric',
+                month: 'long',
+            }).format(dateNew)}`;
 
             if (!monthlyData[key]) {
                 monthlyData[key] = { entradas: 0, saidas: 0 };
@@ -218,9 +222,8 @@ export function Dashboard() {
         });
 
         const chartDataArray = Object.keys(monthlyData).map(key => {
-            const [year, month] = key.split('-');
             return {
-                name: `${month}/${year}`,
+                name: key,
                 entradas: monthlyData[key].entradas,
                 saidas: monthlyData[key].saidas
             };
