@@ -557,7 +557,7 @@ export function Dashboard() {
             </SelectContent>
           </Select>
           <Drawer>
-            <DrawerTrigger>
+            <DrawerTrigger asChild>
               <Button variant="outline">Ver gráfico</Button>
             </DrawerTrigger>
             <DrawerContent>
